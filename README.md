@@ -62,10 +62,10 @@ Flags:
 
 ## Output
 
-The tool will output a list of repositories that have Dependabot PRs older than the specified age:
+The tool will output the percentage of repositories with old Dependabot PRs and a list of those repositories:
 
 ```
-Repositories with Dependabot PRs older than 30 days:
+15 of 50 production repositories (30.0%) have Dependabot PRs older than 30 days:
 - repo1
 - repo2
 - repo3
@@ -74,4 +74,4 @@ Repositories with Dependabot PRs older than 30 days:
 If no repositories are found with old Dependabot PRs, it will output:
 
 ```
-No repositories found with Dependabot PRs older than 30 days
+No repositories found with Dependabot PRs older than 30 days (0.0% of 45 production repositories)

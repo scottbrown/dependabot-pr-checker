@@ -45,12 +45,20 @@ The tool requires a GitHub token to be set in the GITHUB_TOKEN environment varia
 			return fmt.Errorf("failed to check for old Dependabot PRs: %w", err)
 		}
 
-		if len(reposWithOldPRs) == 0 {
-			fmt.Println("No repositories found with Dependabot PRs older than", maxAge, "days")
+		totalRepos := len(repos)
+		reposWithOldPRsCount := len(reposWithOldPRs)
+		percentage := 0.0
+		if totalRepos > 0 {
+			percentage = float64(reposWithOldPRsCount) / float64(totalRepos) * 100
+		}
+
+		if reposWithOldPRsCount == 0 {
+			fmt.Printf("No repositories found with Dependabot PRs older than %d days (0.0%% of %d production repositories)\n", maxAge, totalRepos)
 			return nil
 		}
 
-		fmt.Println("Repositories with Dependabot PRs older than", maxAge, "days:")
+		fmt.Printf("%d of %d production repositories (%.1f%%) have Dependabot PRs older than %d days:\n",
+			reposWithOldPRsCount, totalRepos, percentage, maxAge)
 		for _, repo := range reposWithOldPRs {
 			fmt.Println("-", repo)
 		}
