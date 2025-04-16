@@ -21,3 +21,17 @@ tasks:
     desc: Lint code
     cmds:
       - go vet ./...
+      
+  coverage:
+    desc: Measure test coverage
+    cmds:
+      - mkdir -p .build
+      - go test -coverprofile=.build/coverage.out ./...
+      - go tool cover -func=.build/coverage.out
+
+  coverage-report:
+    desc: Generate HTML test coverage report
+    deps: [coverage]
+    cmds:
+      - go tool cover -html=.build/coverage.out -o .build/coverage.html
+      - echo "Coverage report generated at .build/coverage.html"

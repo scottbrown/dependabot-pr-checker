@@ -44,7 +44,15 @@ task fmt
 
 # Lint code
 task lint
+
+# Measure test coverage
+task coverage
+
+# Generate HTML test coverage report
+task coverage-report
 ```
+
+The coverage report will be available at `.build/coverage.html` after running the `coverage-report` task.
 
 ## Usage
 
