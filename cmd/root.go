@@ -13,6 +13,8 @@ var (
 	organization string
 	maxAge       int
 	verbose      bool
+	version      string // Git branch, set during build by -ldflags
+	build        string // Git short ref, set during build by -ldflags
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -78,6 +80,11 @@ func init() {
 	rootCmd.Flags().StringVarP(&organization, "organization", "o", "", "GitHub organization to check (required)")
 	rootCmd.Flags().IntVar(&maxAge, "max-age", 30, "Maximum age of Dependabot PRs in days")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show verbose output with progress bars")
+
+	// Set version string in format "BRANCH (SHORT_REF)"
+	if version != "" && build != "" {
+		rootCmd.Version = version + " (" + build + ")"
+	}
 
 	rootCmd.MarkFlagRequired("organization")
 }

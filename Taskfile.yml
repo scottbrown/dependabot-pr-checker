@@ -35,3 +35,37 @@ tasks:
     cmds:
       - go tool cover -html=.build/coverage.out -o .build/coverage.html
       - echo "Coverage report generated at .build/coverage.html"
+
+  release:
+    desc: Build the application for multiple platforms and package into tar.gz files
+    cmds:
+      - mkdir -p .dist
+      - |
+        # Get version information from git
+        VERSION=$(git rev-parse --abbrev-ref HEAD)
+        BUILD=$(git rev-parse --short HEAD)
+        APP_NAME="dependabot-pr-checker"
+        LDFLAGS="-X 'github.com/kohofinancial/dependabot-pr-checker/cmd.version=${VERSION}' -X 'github.com/kohofinancial/dependabot-pr-checker/cmd.build=${BUILD}'"
+        
+        echo "Building version: ${VERSION} (${BUILD})"
+        
+        # Build for Windows (64-bit)
+        echo "Building for Windows (amd64)..."
+        GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o .dist/${APP_NAME}.exe
+        tar -czf .dist/${APP_NAME}_${VERSION}_windows_amd64.tar.gz -C .dist ${APP_NAME}.exe
+        rm .dist/${APP_NAME}.exe
+        
+        # Build for Linux (64-bit)
+        echo "Building for Linux (amd64)..."
+        GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o .dist/${APP_NAME}
+        tar -czf .dist/${APP_NAME}_${VERSION}_linux_amd64.tar.gz -C .dist ${APP_NAME}
+        rm .dist/${APP_NAME}
+        
+        # Build for macOS (64-bit)
+        echo "Building for macOS (amd64)..."
+        GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o .dist/${APP_NAME}
+        tar -czf .dist/${APP_NAME}_${VERSION}_darwin_amd64.tar.gz -C .dist ${APP_NAME}
+        rm .dist/${APP_NAME}
+        
+        echo "Release artifacts created in .dist directory:"
+        ls -la .dist/
