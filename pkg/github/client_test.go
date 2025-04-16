@@ -91,7 +91,7 @@ func TestGetProductionRepos(t *testing.T) {
 			defer server.Close()
 
 			// Call the function being tested
-			repos, err := client.GetProductionRepos(tt.organization)
+			repos, err := client.GetProductionRepos(tt.organization, false)
 
 			// Check if the error matches the expected error
 			if (err != nil) != tt.expectedError {
@@ -201,7 +201,7 @@ func TestCheckForOldDependabotPRs(t *testing.T) {
 			defer server.Close()
 
 			// Call the function being tested
-			repos, err := client.CheckForOldDependabotPRs(tt.repos, tt.maxAge)
+			repos, err := client.CheckForOldDependabotPRs(tt.repos, tt.maxAge, false)
 
 			// Check if the error matches the expected error
 			if (err != nil) != tt.expectedError {

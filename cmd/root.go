@@ -12,6 +12,7 @@ import (
 var (
 	organization string
 	maxAge       int
+	verbose      bool
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -34,13 +35,13 @@ The tool requires a GitHub token to be set in the GITHUB_TOKEN environment varia
 			return fmt.Errorf("failed to create GitHub client: %w", err)
 		}
 
-		repos, err := client.GetProductionRepos(organization)
+		repos, err := client.GetProductionRepos(organization, verbose)
 		if err != nil {
 			return fmt.Errorf("failed to get production repositories: %w", err)
 		}
 
 		maxAgeDuration := time.Duration(maxAge) * 24 * time.Hour
-		reposWithOldPRs, err := client.CheckForOldDependabotPRs(repos, maxAgeDuration)
+		reposWithOldPRs, err := client.CheckForOldDependabotPRs(repos, maxAgeDuration, verbose)
 		if err != nil {
 			return fmt.Errorf("failed to check for old Dependabot PRs: %w", err)
 		}
@@ -76,6 +77,7 @@ func Execute() error {
 func init() {
 	rootCmd.Flags().StringVarP(&organization, "organization", "o", "", "GitHub organization to check (required)")
 	rootCmd.Flags().IntVar(&maxAge, "max-age", 30, "Maximum age of Dependabot PRs in days")
+	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show verbose output with progress bars")
 
 	rootCmd.MarkFlagRequired("organization")
 }

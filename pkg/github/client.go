@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v60/github"
+	"github.com/schollz/progressbar/v3"
 	"golang.org/x/oauth2"
 )
 
@@ -31,10 +32,27 @@ func NewClient(token string) (*Client, error) {
 }
 
 // GetProductionRepos returns all repositories in the organization that have the topic 'business-critical-yes'
-func (c *Client) GetProductionRepos(org string) ([]string, error) {
+func (c *Client) GetProductionRepos(org string, verbose bool) ([]string, error) {
 	var allRepos []*github.Repository
 	opts := &github.RepositoryListByOrgOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
+	}
+
+	// Initialize progress bar for repository collection if verbose mode is enabled
+	var bar *progressbar.ProgressBar
+	if verbose {
+		fmt.Println("Collecting repositories from organization:", org)
+		bar = progressbar.NewOptions(-1,
+			progressbar.OptionSetDescription("Fetching repositories"),
+			progressbar.OptionShowCount(),
+			progressbar.OptionSetTheme(progressbar.Theme{
+				Saucer:        "=",
+				SaucerHead:    ">",
+				SaucerPadding: " ",
+				BarStart:      "[",
+				BarEnd:        "]",
+			}),
+		)
 	}
 
 	for {
@@ -46,10 +64,20 @@ func (c *Client) GetProductionRepos(org string) ([]string, error) {
 			return nil, fmt.Errorf("error listing repositories: %w", err)
 		}
 		allRepos = append(allRepos, repos...)
+
+		if verbose {
+			bar.Add(len(repos))
+		}
+
 		if resp.NextPage == 0 {
 			break
 		}
 		opts.Page = resp.NextPage
+	}
+
+	if verbose {
+		bar.Finish()
+		fmt.Printf("Found %d total repositories\n", len(allRepos))
 	}
 
 	var productionRepos []string
@@ -66,15 +94,40 @@ func (c *Client) GetProductionRepos(org string) ([]string, error) {
 		}
 	}
 
+	if verbose {
+		fmt.Printf("Found %d production repositories with 'business-critical-yes' topic\n", len(productionRepos))
+	}
+
 	return productionRepos, nil
 }
 
 // CheckForOldDependabotPRs checks each repository for Dependabot PRs older than maxAge
-func (c *Client) CheckForOldDependabotPRs(repos []string, maxAge time.Duration) ([]string, error) {
+func (c *Client) CheckForOldDependabotPRs(repos []string, maxAge time.Duration, verbose bool) ([]string, error) {
 	var reposWithOldPRs []string
 	cutoffTime := time.Now().Add(-maxAge)
 
-	for _, repo := range repos {
+	// Initialize progress bar for checking repositories if verbose mode is enabled
+	var bar *progressbar.ProgressBar
+	if verbose {
+		fmt.Printf("Checking %d repositories for old Dependabot PRs\n", len(repos))
+		bar = progressbar.NewOptions(len(repos),
+			progressbar.OptionSetDescription("Checking repositories"),
+			progressbar.OptionShowCount(),
+			progressbar.OptionSetTheme(progressbar.Theme{
+				Saucer:        "=",
+				SaucerHead:    ">",
+				SaucerPadding: " ",
+				BarStart:      "[",
+				BarEnd:        "]",
+			}),
+		)
+	}
+
+	for i, repo := range repos {
+		if verbose {
+			bar.Describe(fmt.Sprintf("Checking %s (%d/%d)", repo, i+1, len(repos)))
+		}
+
 		opts := &github.PullRequestListOptions{
 			State:     "open",
 			Sort:      "created",
@@ -103,6 +156,19 @@ func (c *Client) CheckForOldDependabotPRs(repos []string, maxAge time.Duration) 
 
 		if hasOldDependabotPR {
 			reposWithOldPRs = append(reposWithOldPRs, repo)
+		}
+
+		if verbose {
+			bar.Add(1)
+		}
+	}
+
+	if verbose {
+		bar.Finish()
+		if len(reposWithOldPRs) > 0 {
+			fmt.Printf("Found %d repositories with old Dependabot PRs\n", len(reposWithOldPRs))
+		} else {
+			fmt.Println("No repositories found with old Dependabot PRs")
 		}
 	}
 
