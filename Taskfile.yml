@@ -1,0 +1,23 @@
+version: '3'
+
+tasks:
+  build:
+    desc: Build the application
+    cmds:
+      - mkdir -p .build
+      - go build -o .build/dependabot-pr-checker
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v ./...
+
+  fmt:
+    desc: Format code
+    cmds:
+      - go fmt ./...
+
+  lint:
+    desc: Lint code
+    cmds:
+      - go vet ./...

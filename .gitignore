@@ -1,0 +1,18 @@
+# Build output
+.build/
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+
+# IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo

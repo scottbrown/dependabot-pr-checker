@@ -15,14 +15,35 @@ This tool identifies GitHub repositories in a specified organization that:
 git clone https://github.com/kohofinancial/dependabot-pr-checker.git
 cd dependabot-pr-checker
 
-# Build the binary
-go build -o dependabot-pr-checker
+# Build the binary using Task
+task build
+# The binary will be available in the .build directory
 ```
 
 Alternatively, you can install directly using Go:
 
 ```bash
 go install github.com/kohofinancial/dependabot-pr-checker@latest
+```
+
+## Development
+
+This project uses [Task](https://taskfile.dev/) for automation. Make sure you have Task installed.
+
+Available tasks:
+
+```bash
+# Build the application
+task build
+
+# Run tests
+task test
+
+# Format code
+task fmt
+
+# Lint code
+task lint
 ```
 
 ## Usage
