@@ -13,6 +13,7 @@ var (
 	organization string
 	maxAge       int
 	verbose      bool
+	quiet        bool
 	version      string // Git branch, set during build by -ldflags
 	build        string // Git short ref, set during build by -ldflags
 )
@@ -32,18 +33,25 @@ The tool requires a GitHub token to be set in the GITHUB_TOKEN environment varia
 			return fmt.Errorf("GITHUB_TOKEN environment variable is not set")
 		}
 
+		// Check for mutually exclusive flags
+		if verbose && quiet {
+			return fmt.Errorf("--verbose and --quiet flags cannot be used together")
+		}
+
 		client, err := github.NewClient(token)
 		if err != nil {
 			return fmt.Errorf("failed to create GitHub client: %w", err)
 		}
 
-		repos, err := client.GetProductionRepos(organization, verbose)
+		// Use verbose=false if quiet=true
+		showOutput := verbose && !quiet
+		repos, err := client.GetProductionRepos(organization, showOutput)
 		if err != nil {
 			return fmt.Errorf("failed to get production repositories: %w", err)
 		}
 
 		maxAgeDuration := time.Duration(maxAge) * 24 * time.Hour
-		reposWithOldPRs, err := client.CheckForOldDependabotPRs(repos, maxAgeDuration, verbose)
+		reposWithOldPRs, err := client.CheckForOldDependabotPRs(repos, maxAgeDuration, showOutput)
 		if err != nil {
 			return fmt.Errorf("failed to check for old Dependabot PRs: %w", err)
 		}
@@ -55,6 +63,15 @@ The tool requires a GitHub token to be set in the GITHUB_TOKEN environment varia
 			percentage = float64(reposWithOldPRsCount) / float64(totalRepos) * 100
 		}
 
+		// In quiet mode, only output the repo names without any context
+		if quiet {
+			for _, repo := range reposWithOldPRs {
+				fmt.Println(repo)
+			}
+			return nil
+		}
+
+		// Normal output mode
 		if reposWithOldPRsCount == 0 {
 			fmt.Printf("No repositories found with Dependabot PRs older than %d days (0.0%% of %d production repositories)\n", maxAge, totalRepos)
 			return nil
@@ -80,6 +97,7 @@ func init() {
 	rootCmd.Flags().StringVarP(&organization, "organization", "o", "", "GitHub organization to check (required)")
 	rootCmd.Flags().IntVar(&maxAge, "max-age", 30, "Maximum age of Dependabot PRs in days")
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show verbose output with progress bars")
+	rootCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Only output repository names with no additional context")
 
 	// Set version string in format "BRANCH (SHORT_REF)"
 	if version != "" && build != "" {
