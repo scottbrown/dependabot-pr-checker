@@ -30,6 +30,12 @@ func TestRootCommand(t *testing.T) {
 			envVars:       map[string]string{},
 			expectedError: true,
 		},
+		{
+			name:          "conflicting_verbose_quiet_flags",
+			args:          []string{"dependabot-pr-checker", "-o", "testorg", "-v", "-q"},
+			envVars:       map[string]string{"GITHUB_TOKEN": "dummy-token"},
+			expectedError: true,
+		},
 	}
 
 	for _, tt := range tests {
