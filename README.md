@@ -82,6 +82,7 @@ Flags:
       --max-age int           Maximum age of Dependabot PRs in days (default 30)
   -o, --organization string   GitHub organization to check (required)
   -q, --quiet                 Only output repository names with no additional context
+      --sort string           Sort results by: name, age (default "name")
   -v, --verbose               Show verbose output with progress bars
 ```
 
@@ -94,14 +95,17 @@ Flags:
 # Show verbose output with progress bars
 ./dependabot-pr-checker -o kohofinancial -v
 
+# Sort repositories by age of oldest PR (oldest first)
+./dependabot-pr-checker -o kohofinancial --sort age
+
 # Only output repository names (useful for piping to other commands)
 ./dependabot-pr-checker -o kohofinancial -q
 
 # Output in JSON format
 ./dependabot-pr-checker -o kohofinancial --format json
 
-# Output in CSV format
-./dependabot-pr-checker -o kohofinancial --format csv
+# Output in CSV format with age information
+./dependabot-pr-checker -o kohofinancial --format csv --sort age
 ```
 
 ## Output
@@ -115,6 +119,15 @@ The tool will output the percentage of repositories with old Dependabot PRs and 
 - repo1
 - repo2
 - repo3
+```
+
+When sorting by age (`--sort age`), the output includes the age of the oldest PR in days:
+
+```
+15 of 50 production repositories (30.0%) have Dependabot PRs older than 30 days:
+- repo1 (120.5 days old)
+- repo2 (95.2 days old)
+- repo3 (45.8 days old)
 ```
 
 If no repositories are found with old Dependabot PRs, it will output:
@@ -151,9 +164,18 @@ repo3
 
 ### CSV Format Output
 
+Default format:
 ```
 Repository,Has_Old_Dependabot_PR
 repo1,true
 repo2,true
 repo3,true
+```
+
+When using `--sort age`, the CSV output includes PR ages:
+```
+Repository,PR_Age_Days
+repo1,120.5
+repo2,95.2
+repo3,45.8
 ```

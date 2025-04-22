@@ -3,12 +3,20 @@ package github
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/go-github/v60/github"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/oauth2"
 )
+
+// RepoInfo contains information about a repository with old Dependabot PRs
+type RepoInfo struct {
+	Name         string
+	OldestPRAge  time.Duration
+	OldestPRDate time.Time
+}
 
 // Client wraps the GitHub API client
 type Client struct {
@@ -102,9 +110,10 @@ func (c *Client) GetProductionRepos(org string, verbose bool) ([]string, error) 
 }
 
 // CheckForOldDependabotPRs checks each repository for Dependabot PRs older than maxAge
-func (c *Client) CheckForOldDependabotPRs(repos []string, maxAge time.Duration, verbose bool) ([]string, error) {
-	var reposWithOldPRs []string
+func (c *Client) CheckForOldDependabotPRs(repos []string, maxAge time.Duration, verbose bool) ([]RepoInfo, error) {
+	var reposWithOldPRs []RepoInfo
 	cutoffTime := time.Now().Add(-maxAge)
+	now := time.Now()
 
 	// Initialize progress bar for checking repositories if verbose mode is enabled
 	var bar *progressbar.ProgressBar
@@ -142,20 +151,27 @@ func (c *Client) CheckForOldDependabotPRs(repos []string, maxAge time.Duration, 
 			return nil, fmt.Errorf("error listing PRs for %s: %w", repo, err)
 		}
 
-		hasOldDependabotPR := false
+		var oldestPR *github.PullRequest
 		for _, pr := range prs {
 			// Check if PR is from Dependabot
 			if pr.User != nil && pr.User.Login != nil && *pr.User.Login == "dependabot[bot]" {
 				// Check if PR is older than maxAge
-				if pr.CreatedAt != nil && pr.CreatedAt.Before(cutoffTime) {
-					hasOldDependabotPR = true
-					break
+				if pr.CreatedAt != nil && pr.CreatedAt.Time.Before(cutoffTime) {
+					// If we haven't found an old PR yet or this one is older
+					if oldestPR == nil || pr.CreatedAt.Time.Before(oldestPR.CreatedAt.Time) {
+						oldestPR = pr
+					}
 				}
 			}
 		}
 
-		if hasOldDependabotPR {
-			reposWithOldPRs = append(reposWithOldPRs, repo)
+		if oldestPR != nil {
+			repoInfo := RepoInfo{
+				Name:         repo,
+				OldestPRDate: oldestPR.CreatedAt.Time,
+				OldestPRAge:  now.Sub(oldestPR.CreatedAt.Time),
+			}
+			reposWithOldPRs = append(reposWithOldPRs, repoInfo)
 		}
 
 		if verbose {
@@ -173,4 +189,24 @@ func (c *Client) CheckForOldDependabotPRs(repos []string, maxAge time.Duration, 
 	}
 
 	return reposWithOldPRs, nil
+}
+
+// SortReposByName sorts repositories by name in ascending order
+func SortReposByName(repos []RepoInfo) []RepoInfo {
+	sorted := make([]RepoInfo, len(repos))
+	copy(sorted, repos)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Name < sorted[j].Name
+	})
+	return sorted
+}
+
+// SortReposByAge sorts repositories by age of oldest Dependabot PR in descending order (oldest first)
+func SortReposByAge(repos []RepoInfo) []RepoInfo {
+	sorted := make([]RepoInfo, len(repos))
+	copy(sorted, repos)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].OldestPRAge > sorted[j].OldestPRAge
+	})
+	return sorted
 }

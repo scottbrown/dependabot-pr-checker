@@ -12,13 +12,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// RepoWithAge represents a repository with the age of its oldest Dependabot PR
+type RepoWithAge struct {
+	Name      string  `json:"name"`
+	AgeInDays float64 `json:"age_in_days"`
+}
+
 // OutputData represents the data structure used for formatted output
 type OutputData struct {
-	TotalRepos        int      `json:"total_repos"`
-	TotalWithOldPRs   int      `json:"total_with_old_prs"`
-	Percentage        float64  `json:"percentage"`
-	MaxAge            int      `json:"max_age"`
-	ReposWithOldPRs   []string `json:"repos_with_old_prs"`
+	TotalRepos      int          `json:"total_repos"`
+	TotalWithOldPRs int          `json:"total_with_old_prs"`
+	Percentage      float64      `json:"percentage"`
+	MaxAge          int          `json:"max_age"`
+	ReposWithOldPRs []RepoWithAge `json:"repos_with_old_prs"`
 }
 
 var (
@@ -27,6 +33,7 @@ var (
 	verbose      bool
 	quiet        bool
 	outputFormat string
+	sortBy       string
 	version      string // Git branch, set during build by -ldflags
 	build        string // Git short ref, set during build by -ldflags
 )
@@ -56,6 +63,12 @@ The tool requires a GitHub token to be set in the GITHUB_TOKEN environment varia
 		if outputFormat != "text" && outputFormat != "json" && outputFormat != "csv" {
 			return fmt.Errorf("unsupported output format: %s (must be text, json, or csv)", outputFormat)
 		}
+		
+		// Validate sort flag
+		sortBy = strings.ToLower(sortBy)
+		if sortBy != "name" && sortBy != "age" {
+			return fmt.Errorf("unsupported sort option: %s (must be name or age)", sortBy)
+		}
 
 		client, err := github.NewClient(token)
 		if err != nil {
@@ -81,6 +94,24 @@ The tool requires a GitHub token to be set in the GITHUB_TOKEN environment varia
 		if totalRepos > 0 {
 			percentage = float64(reposWithOldPRsCount) / float64(totalRepos) * 100
 		}
+		
+		// Apply sorting based on user preference
+		var sortedRepos []github.RepoInfo
+		if sortBy == "age" {
+			sortedRepos = github.SortReposByAge(reposWithOldPRs)
+		} else {
+			// Default is to sort by name
+			sortedRepos = github.SortReposByName(reposWithOldPRs)
+		}
+		
+		// Convert to RepoWithAge format for output
+		reposWithAge := make([]RepoWithAge, len(sortedRepos))
+		for i, repo := range sortedRepos {
+			reposWithAge[i] = RepoWithAge{
+				Name:      repo.Name,
+				AgeInDays: repo.OldestPRAge.Hours() / 24.0, // Convert to days
+			}
+		}
 
 		// Prepare output data
 		data := OutputData{
@@ -88,7 +119,7 @@ The tool requires a GitHub token to be set in the GITHUB_TOKEN environment varia
 			TotalWithOldPRs: reposWithOldPRsCount,
 			Percentage:      percentage,
 			MaxAge:          maxAge,
-			ReposWithOldPRs: reposWithOldPRs,
+			ReposWithOldPRs: reposWithAge,
 		}
 
 		// Output in the requested format
@@ -108,7 +139,7 @@ func outputText(data OutputData, quiet bool) error {
 	// In quiet mode, only output the repo names without any context
 	if quiet {
 		for _, repo := range data.ReposWithOldPRs {
-			fmt.Println(repo)
+			fmt.Println(repo.Name)
 		}
 		return nil
 	}
@@ -123,7 +154,11 @@ func outputText(data OutputData, quiet bool) error {
 	fmt.Printf("%d of %d production repositories (%.1f%%) have Dependabot PRs older than %d days:\n",
 		data.TotalWithOldPRs, data.TotalRepos, data.Percentage, data.MaxAge)
 	for _, repo := range data.ReposWithOldPRs {
-		fmt.Println("-", repo)
+		if sortBy == "age" {
+			fmt.Printf("- %s (%.1f days old)\n", repo.Name, repo.AgeInDays)
+		} else {
+			fmt.Printf("- %s\n", repo.Name)
+		}
 	}
 
 	return nil
@@ -140,20 +175,28 @@ func outputJSON(data OutputData) error {
 func outputCSV(data OutputData) error {
 	writer := csv.NewWriter(os.Stdout)
 	
+	var header []string
+	if sortBy == "age" {
+		header = []string{"Repository", "PR_Age_Days"}
+	} else {
+		header = []string{"Repository", "Has_Old_Dependabot_PR"}
+	}
+	
 	// Write header
-	if err := writer.Write([]string{"Repository", "Has_Old_Dependabot_PR"}); err != nil {
+	if err := writer.Write(header); err != nil {
 		return fmt.Errorf("error writing CSV header: %w", err)
 	}
 
-	// Create a map for quick lookup of repositories with old PRs
-	reposMap := make(map[string]bool)
+	// Write data for repositories with old PRs
 	for _, repo := range data.ReposWithOldPRs {
-		reposMap[repo] = true
-	}
-
-	// Write data just for repositories with old PRs (since we don't have the full list in our data structure)
-	for _, repo := range data.ReposWithOldPRs {
-		if err := writer.Write([]string{repo, "true"}); err != nil {
+		var record []string
+		if sortBy == "age" {
+			record = []string{repo.Name, fmt.Sprintf("%.1f", repo.AgeInDays)}
+		} else {
+			record = []string{repo.Name, "true"}
+		}
+		
+		if err := writer.Write(record); err != nil {
 			return fmt.Errorf("error writing CSV record: %w", err)
 		}
 	}
@@ -178,6 +221,7 @@ func init() {
 	rootCmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "Show verbose output with progress bars")
 	rootCmd.Flags().BoolVarP(&quiet, "quiet", "q", false, "Only output repository names with no additional context")
 	rootCmd.Flags().StringVar(&outputFormat, "format", "text", "Output format (text, json, csv)")
+	rootCmd.Flags().StringVar(&sortBy, "sort", "name", "Sort results by: name, age")
 
 	// Set version string in format "BRANCH (SHORT_REF)"
 	if version != "" && build != "" {
