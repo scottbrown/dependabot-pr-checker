@@ -77,19 +77,36 @@ Usage:
   dependabot-pr-checker [flags]
 
 Flags:
+      --format string         Output format (text, json, csv) (default "text")
   -h, --help                  help for dependabot-pr-checker
       --max-age int           Maximum age of Dependabot PRs in days (default 30)
   -o, --organization string   GitHub organization to check (required)
+  -q, --quiet                 Only output repository names with no additional context
+  -v, --verbose               Show verbose output with progress bars
 ```
 
-## Example
+## Examples
 
 ```bash
 # Check for Dependabot PRs older than 14 days
 ./dependabot-pr-checker -o kohofinancial --max-age 14
+
+# Show verbose output with progress bars
+./dependabot-pr-checker -o kohofinancial -v
+
+# Only output repository names (useful for piping to other commands)
+./dependabot-pr-checker -o kohofinancial -q
+
+# Output in JSON format
+./dependabot-pr-checker -o kohofinancial --format json
+
+# Output in CSV format
+./dependabot-pr-checker -o kohofinancial --format csv
 ```
 
 ## Output
+
+### Default Text Output
 
 The tool will output the percentage of repositories with old Dependabot PRs and a list of those repositories:
 
@@ -104,3 +121,39 @@ If no repositories are found with old Dependabot PRs, it will output:
 
 ```
 No repositories found with Dependabot PRs older than 30 days (0.0% of 45 production repositories)
+```
+
+### Quiet Mode Output
+
+In quiet mode, only repository names are output:
+
+```
+repo1
+repo2
+repo3
+```
+
+### JSON Format Output
+
+```json
+{
+  "total_repos": 50,
+  "total_with_old_prs": 15,
+  "percentage": 30.0,
+  "max_age": 30,
+  "repos_with_old_prs": [
+    "repo1",
+    "repo2",
+    "repo3"
+  ]
+}
+```
+
+### CSV Format Output
+
+```
+Repository,Has_Old_Dependabot_PR
+repo1,true
+repo2,true
+repo3,true
+```

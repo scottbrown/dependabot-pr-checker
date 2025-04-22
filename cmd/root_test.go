@@ -73,7 +73,7 @@ func TestRootCommand(t *testing.T) {
 
 			// Check if the error matches the expected error
 			if (err != nil) != tt.expectedError {
-				t.Errorf("Execute() error = %v, expectedError %v", err, tt.expectedError)
+				t.Errorf("Execute() for %q error = %v, expectedError %v", tt.name, err, tt.expectedError)
 				return
 			}
 
