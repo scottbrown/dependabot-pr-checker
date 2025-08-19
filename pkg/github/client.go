@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/google/go-github/v60/github"
+	"github.com/google/go-github/v68/github"
 	"github.com/schollz/progressbar/v3"
 	"golang.org/x/oauth2"
 )

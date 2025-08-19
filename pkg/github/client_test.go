@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v60/github"
+	"github.com/google/go-github/v68/github"
 )
 
 // mockGitHubServer creates a mock GitHub API server for testing
