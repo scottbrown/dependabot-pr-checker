@@ -12,7 +12,7 @@ This tool identifies GitHub repositories in a specified organization that:
 
 ```bash
 # Clone the repository
-git clone https://github.com/kohofinancial/dependabot-pr-checker.git
+git clone https://github.com/scottbrown/dependabot-pr-checker.git
 cd dependabot-pr-checker
 
 # Build the binary using Task
@@ -23,7 +23,7 @@ task build
 Alternatively, you can install directly using Go:
 
 ```bash
-go install github.com/kohofinancial/dependabot-pr-checker@latest
+go install github.com/scottbrown/dependabot-pr-checker@latest
 ```
 
 ## Development
@@ -61,7 +61,7 @@ The coverage report will be available at `.build/coverage.html` after running th
 export GITHUB_TOKEN=your_github_token
 
 # Run the tool
-./dependabot-pr-checker -o kohofinancial
+./dependabot-pr-checker -o myorg
 ```
 
 ### Required Permissions
@@ -90,22 +90,22 @@ Flags:
 
 ```bash
 # Check for Dependabot PRs older than 14 days
-./dependabot-pr-checker -o kohofinancial --max-age 14
+./dependabot-pr-checker -o myorg --max-age 14
 
 # Show verbose output with progress bars
-./dependabot-pr-checker -o kohofinancial -v
+./dependabot-pr-checker -o myorg -v
 
 # Sort repositories by age of oldest PR (oldest first)
-./dependabot-pr-checker -o kohofinancial --sort age
+./dependabot-pr-checker -o myorg --sort age
 
 # Only output repository names (useful for piping to other commands)
-./dependabot-pr-checker -o kohofinancial -q
+./dependabot-pr-checker -o myorg -q
 
 # Output in JSON format
-./dependabot-pr-checker -o kohofinancial --format json
+./dependabot-pr-checker -o myorg --format json
 
 # Output in CSV format with age information
-./dependabot-pr-checker -o kohofinancial --format csv --sort age
+./dependabot-pr-checker -o myorg --format csv --sort age
 ```
 
 ## Output

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kohofinancial/dependabot-pr-checker/cmd"
+	"github.com/scottbrown/dependabot-pr-checker/cmd"
 )
 
 // Variable for os.Exit to allow overriding in tests

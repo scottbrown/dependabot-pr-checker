@@ -179,7 +179,7 @@ func TestCheckForOldDependabotPRs(t *testing.T) {
 			// Create a handler that returns the test response
 			handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Extract the repo name from the URL path
-				// URL path format: /repos/kohofinancial/{repo}/pulls
+				// URL path format: /repos/{org}/{repo}/pulls
 				pathParts := strings.Split(r.URL.Path, "/")
 
 				// Check if this is a valid pull request URL
@@ -206,7 +206,7 @@ func TestCheckForOldDependabotPRs(t *testing.T) {
 			defer server.Close()
 
 			// Call the function being tested
-			repos, err := client.CheckForOldDependabotPRs(tt.repos, tt.maxAge, false)
+			repos, err := client.CheckForOldDependabotPRs("testorg", tt.repos, tt.maxAge, false)
 
 			// Check if the error matches the expected error
 			if (err != nil) != tt.expectedError {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/kohofinancial/dependabot-pr-checker/pkg/github"
+	"github.com/scottbrown/dependabot-pr-checker/pkg/github"
 	"github.com/spf13/cobra"
 )
 
@@ -83,7 +83,7 @@ The tool requires a GitHub token to be set in the GITHUB_TOKEN environment varia
 		}
 
 		maxAgeDuration := time.Duration(maxAge) * 24 * time.Hour
-		reposWithOldPRs, err := client.CheckForOldDependabotPRs(repos, maxAgeDuration, showOutput)
+		reposWithOldPRs, err := client.CheckForOldDependabotPRs(organization, repos, maxAgeDuration, showOutput)
 		if err != nil {
 			return fmt.Errorf("failed to check for old Dependabot PRs: %w", err)
 		}

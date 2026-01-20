@@ -110,7 +110,7 @@ func (c *Client) GetProductionRepos(org string, verbose bool) ([]string, error) 
 }
 
 // CheckForOldDependabotPRs checks each repository for Dependabot PRs older than maxAge
-func (c *Client) CheckForOldDependabotPRs(repos []string, maxAge time.Duration, verbose bool) ([]RepoInfo, error) {
+func (c *Client) CheckForOldDependabotPRs(org string, repos []string, maxAge time.Duration, verbose bool) ([]RepoInfo, error) {
 	var reposWithOldPRs []RepoInfo
 	cutoffTime := time.Now().Add(-maxAge)
 	now := time.Now()
@@ -146,7 +146,7 @@ func (c *Client) CheckForOldDependabotPRs(repos []string, maxAge time.Duration, 
 			},
 		}
 
-		prs, _, err := c.client.PullRequests.List(c.ctx, "kohofinancial", repo, opts)
+		prs, _, err := c.client.PullRequests.List(c.ctx, org, repo, opts)
 		if err != nil {
 			return nil, fmt.Errorf("error listing PRs for %s: %w", repo, err)
 		}

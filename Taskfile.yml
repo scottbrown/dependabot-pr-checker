@@ -45,7 +45,7 @@ tasks:
         VERSION=$(git rev-parse --abbrev-ref HEAD)
         BUILD=$(git rev-parse --short HEAD)
         APP_NAME="dependabot-pr-checker"
-        LDFLAGS="-X 'github.com/kohofinancial/dependabot-pr-checker/cmd.version=${VERSION}' -X 'github.com/kohofinancial/dependabot-pr-checker/cmd.build=${BUILD}'"
+        LDFLAGS="-X 'github.com/scottbrown/dependabot-pr-checker/cmd.version=${VERSION}' -X 'github.com/scottbrown/dependabot-pr-checker/cmd.build=${BUILD}'"
         
         echo "Building version: ${VERSION} (${BUILD})"
         

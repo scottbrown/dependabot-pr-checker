@@ -1,4 +1,4 @@
-module github.com/kohofinancial/dependabot-pr-checker
+module github.com/scottbrown/dependabot-pr-checker
 
 go 1.24.2
 
