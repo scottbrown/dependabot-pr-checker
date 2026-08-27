@@ -10,6 +10,26 @@ This tool identifies GitHub repositories in a specified organization that:
 
 ## Installation
 
+### Homebrew
+
+```bash
+brew tap scottbrown/tools
+brew install dependabot-pr-checker
+```
+
+### Pre-built binaries
+
+Each tagged release publishes `tar.gz` archives for Linux, macOS, and Windows
+(amd64 and arm64) plus a CycloneDX SBOM on the
+[releases page](https://github.com/scottbrown/dependabot-pr-checker/releases).
+
+```bash
+tar xzf dependabot-pr-checker_v1.0.0_darwin_arm64.tar.gz
+mv dependabot-pr-checker /usr/local/bin/
+```
+
+### From source
+
 ```bash
 # Clone the repository
 git clone https://github.com/scottbrown/dependabot-pr-checker.git
@@ -50,9 +70,31 @@ task coverage
 
 # Generate HTML test coverage report
 task coverage-report
+
+# Build release artifacts for all platforms
+task release VERSION=v1.0.0
 ```
 
 The coverage report will be available at `.build/coverage.html` after running the `coverage-report` task.
+Release archives are written to `.dist/`.
+
+## Releasing
+
+Releases are cut by pushing a `v`-prefixed tag. The `Release` GitHub Actions
+workflow runs the unit tests, cross-compiles for linux/darwin/windows on both
+amd64 and arm64, generates an SBOM, and attaches everything to a GitHub release.
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+The version and commit are baked into the binary via `-ldflags` and reported by
+`dependabot-pr-checker --version`.
+
+After the release completes, update the Homebrew formula in
+[scottbrown/homebrew-tools](https://github.com/scottbrown/homebrew-tools) with the
+new version and the `sha256` of each archive.
 
 ## Usage
 

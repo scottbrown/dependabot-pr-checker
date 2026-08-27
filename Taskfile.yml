@@ -1,11 +1,28 @@
+---
 version: '3'
+
+vars:
+  bin_name: dependabot-pr-checker
+  app_repo: github.com/scottbrown/{{ .bin_name }}
+  pkg_name: "{{ .app_repo }}"
+
+  pwd:
+    sh: pwd
+
+  build_dir: "{{ .pwd }}/.build"
+  dist_dir: "{{ .pwd }}/.dist"
+
+  git_version:
+    sh: git tag --points-at HEAD | head -1 | grep . || git rev-parse --abbrev-ref HEAD
+  git_commit:
+    sh: git rev-parse --short HEAD
+  ldflags: "-X {{ .app_repo }}/cmd.version={{ .git_version }} -X {{ .app_repo }}/cmd.build={{ .git_commit }}"
 
 tasks:
   build:
     desc: Build the application
     cmds:
-      - mkdir -p .build
-      - go build -o .build/dependabot-pr-checker
+      - go build -ldflags "{{ .ldflags }}" -o {{ .build_dir }}/{{ .bin_name }} {{ .pkg_name }}
 
   test:
     desc: Run tests
@@ -21,51 +38,105 @@ tasks:
     desc: Lint code
     cmds:
       - go vet ./...
-      
+
   coverage:
     desc: Measure test coverage
     cmds:
-      - mkdir -p .build
-      - go test -coverprofile=.build/coverage.out ./...
-      - go tool cover -func=.build/coverage.out
+      - mkdir -p {{ .build_dir }}
+      - go test -coverprofile={{ .build_dir }}/coverage.out ./...
+      - go tool cover -func={{ .build_dir }}/coverage.out
 
   coverage-report:
     desc: Generate HTML test coverage report
     deps: [coverage]
     cmds:
-      - go tool cover -html=.build/coverage.out -o .build/coverage.html
+      - go tool cover -html={{ .build_dir }}/coverage.out -o {{ .build_dir }}/coverage.html
       - echo "Coverage report generated at .build/coverage.html"
 
-  release:
-    desc: Build the application for multiple platforms and package into tar.gz files
+  clean:
+    desc: Remove build and release artifacts
     cmds:
-      - mkdir -p .dist
-      - |
-        # Get version information from git
-        VERSION=$(git rev-parse --abbrev-ref HEAD)
-        BUILD=$(git rev-parse --short HEAD)
-        APP_NAME="dependabot-pr-checker"
-        LDFLAGS="-X 'github.com/scottbrown/dependabot-pr-checker/cmd.version=${VERSION}' -X 'github.com/scottbrown/dependabot-pr-checker/cmd.build=${BUILD}'"
-        
-        echo "Building version: ${VERSION} (${BUILD})"
-        
-        # Build for Windows (64-bit)
-        echo "Building for Windows (amd64)..."
-        GOOS=windows GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o .dist/${APP_NAME}.exe
-        tar -czf .dist/${APP_NAME}_${VERSION}_windows_amd64.tar.gz -C .dist ${APP_NAME}.exe
-        rm .dist/${APP_NAME}.exe
-        
-        # Build for Linux (64-bit)
-        echo "Building for Linux (amd64)..."
-        GOOS=linux GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o .dist/${APP_NAME}
-        tar -czf .dist/${APP_NAME}_${VERSION}_linux_amd64.tar.gz -C .dist ${APP_NAME}
-        rm .dist/${APP_NAME}
-        
-        # Build for macOS (64-bit)
-        echo "Building for macOS (amd64)..."
-        GOOS=darwin GOARCH=amd64 go build -ldflags="${LDFLAGS}" -o .dist/${APP_NAME}
-        tar -czf .dist/${APP_NAME}_${VERSION}_darwin_amd64.tar.gz -C .dist ${APP_NAME}
-        rm .dist/${APP_NAME}
-        
-        echo "Release artifacts created in .dist directory:"
-        ls -la .dist/
+      - rm -rf {{ .build_dir }} {{ .dist_dir }}
+
+  release:
+    desc: "Creates release artifacts"
+    deps:
+      - task: build-deps
+        silent: true
+      - task: release-all
+    requires:
+      vars:
+        - VERSION
+
+  build-deps:
+    cmds:
+      - mkdir -p {{ .dist_dir }}
+    internal: true
+
+  build-all:
+    desc: "Builds all artifacts"
+    deps: [ build-linux, build-windows, build-darwin ]
+
+  build-linux:
+    desc: "Builds a linux artifact"
+    cmds:
+      - for: [ amd64, arm64 ]
+        cmd: GOOS=$GOOS GOARCH={{ .ITEM }} go build -ldflags "{{ .ldflags }}" -o {{ .build_dir }}/linux-{{ .ITEM }}/{{ .bin_name }} {{ .pkg_name }}
+    env:
+      GOOS: linux
+
+  build-windows:
+    desc: "Builds a Windows artifact"
+    cmds:
+      - for: [ amd64, arm64 ]
+        cmd: GOOS=$GOOS GOARCH={{ .ITEM }} go build -ldflags "{{ .ldflags }}" -o {{ .build_dir }}/windows-{{ .ITEM }}/{{ .bin_name }}.exe {{ .pkg_name }}
+    env:
+      GOOS: windows
+
+  build-darwin:
+    desc: "Builds a MacOS artifact"
+    cmds:
+      - for: [ amd64, arm64 ]
+        cmd: GOOS=$GOOS GOARCH={{ .ITEM }} go build -ldflags "{{ .ldflags }}" -o {{ .build_dir }}/darwin-{{ .ITEM }}/{{ .bin_name }} {{ .pkg_name }}
+    env:
+      GOOS: darwin
+
+  release-all:
+    desc: "Creates all releasable artifacts"
+    deps: [ release-linux, release-windows, release-darwin ]
+
+  release-linux:
+    desc: "Creates a linux releasable artifact"
+    deps: [ build-linux ]
+    cmds:
+      - for: [ amd64, arm64 ]
+        cmd: tar cfz {{ .dist_dir }}/{{ .bin_name }}_{{ .VERSION }}_linux_{{ .ITEM }}.tar.gz -C {{ .build_dir }}/linux-{{ .ITEM }} .
+    requires:
+      vars:
+        - VERSION
+
+  release-windows:
+    desc: "Creates a Windows releasable artifact"
+    deps: [ build-windows ]
+    cmds:
+      - for: [ amd64, arm64 ]
+        cmd: tar cfz {{ .dist_dir }}/{{ .bin_name }}_{{ .VERSION }}_windows_{{ .ITEM }}.tar.gz -C {{ .build_dir }}/windows-{{ .ITEM }} .
+    requires:
+      vars:
+        - VERSION
+
+  release-darwin:
+    desc: "Creates a MacOS releasable artifact"
+    deps: [ build-darwin ]
+    cmds:
+      - for: [ amd64, arm64 ]
+        cmd: tar cfz {{ .dist_dir }}/{{ .bin_name }}_{{ .VERSION }}_darwin_{{ .ITEM }}.tar.gz -C {{ .build_dir }}/darwin-{{ .ITEM }} .
+    requires:
+      vars:
+        - VERSION
+
+  sbom:
+    desc: "Generates an SBOM"
+    cmds:
+      - mkdir -p {{ .dist_dir }}
+      - cyclonedx-gomod mod -licenses -json -output {{ .dist_dir }}/bom.json
