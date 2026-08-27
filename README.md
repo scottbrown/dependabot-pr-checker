@@ -5,8 +5,13 @@ A CLI tool to check for old Dependabot pull requests in production GitHub reposi
 ## Overview
 
 This tool identifies GitHub repositories in a specified organization that:
-1. Have the topic `business-critical-yes` (considered "production" repositories)
+1. Are considered "production" repositories, meaning they have either the topic
+   `business-critical-yes` or the custom property `business-critical` set to `yes`
 2. Contain open Dependabot pull requests older than a specified number of days (default: 30 days)
+
+Both criteria are checked by default, so organizations part-way through migrating
+from repository topics to custom properties are covered without extra configuration.
+See [Defining "production"](#defining-production) to change the criteria.
 
 ## Installation
 
@@ -111,6 +116,43 @@ export GITHUB_TOKEN=your_github_token
 The GitHub token must have:
 - `repo` scope to access private repositories
 - Access to the specified organization (may require SAML enforcement if enabled)
+- Permission to read custom properties for the organization, if matching on
+  custom properties (the default). Without it the tool prints a warning and falls
+  back to matching on topics alone.
+
+### Defining "production"
+
+The `--select` flag defines what makes a repository "production". It takes either
+form below and may be repeated; a repository is included if it matches **any** one
+selector:
+
+| Selector | Matches |
+| --- | --- |
+| `topic:NAME` | Repositories carrying the topic `NAME` |
+| `property:NAME=VALUE` | Repositories whose custom property `NAME` holds `VALUE` |
+
+When `--select` is omitted, the defaults are `topic:business-critical-yes` and
+`property:business-critical=yes`. Passing `--select` replaces both defaults rather
+than adding to them.
+
+```bash
+# Default: topic OR custom property
+./dependabot-pr-checker -o myorg
+
+# Custom properties only (migration finished)
+./dependabot-pr-checker -o myorg --select property:business-critical=yes
+
+# Topics only (no custom properties configured, or a token that cannot read them)
+./dependabot-pr-checker -o myorg --select topic:business-critical-yes
+
+# Any other criteria your organization uses
+./dependabot-pr-checker -o myorg --select property:tier=tier-1 --select topic:production
+```
+
+Topic names and property names and values are matched case-insensitively. A
+multi-select custom property matches when any of its values matches. Property
+values are read from a single organization-wide endpoint, so adding a property
+selector costs one extra paginated request per run, not one per repository.
 
 ### Command Line Options
 
@@ -124,6 +166,10 @@ Flags:
       --max-age int           Maximum age of Dependabot PRs in days (default 30)
   -o, --organization string   GitHub organization to check (required)
   -q, --quiet                 Only output repository names with no additional context
+      --select stringArray    Criterion marking a repository as production, as 'topic:NAME' or
+                              'property:NAME=VALUE'. Repeatable; a repository matching any one of
+                              them is included. (default topic:business-critical-yes,
+                              property:business-critical=yes)
       --sort string           Sort results by: name, age (default "name")
   -v, --verbose               Show verbose output with progress bars
 ```
@@ -148,6 +194,9 @@ Flags:
 
 # Output in CSV format with age information
 ./dependabot-pr-checker -o myorg --format csv --sort age
+
+# Select production repositories by custom property instead of topic
+./dependabot-pr-checker -o myorg --select property:business-critical=yes
 ```
 
 ## Output

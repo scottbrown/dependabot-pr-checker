@@ -3,11 +3,15 @@ package github
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/go-github/v68/github"
 	"github.com/schollz/progressbar/v3"
+	"github.com/scottbrown/dependabot-pr-checker/pkg/selector"
 	"golang.org/x/oauth2"
 )
 
@@ -39,8 +43,9 @@ func NewClient(token string) (*Client, error) {
 	}, nil
 }
 
-// GetProductionRepos returns all repositories in the organization that have the topic 'business-critical-yes'
-func (c *Client) GetProductionRepos(org string, verbose bool) ([]string, error) {
+// GetProductionRepos returns all repositories in the organization that satisfy
+// any of the given selectors.
+func (c *Client) GetProductionRepos(org string, selectors selector.Set, verbose bool) ([]string, error) {
 	var allRepos []*github.Repository
 	opts := &github.RepositoryListByOrgOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
@@ -88,25 +93,93 @@ func (c *Client) GetProductionRepos(org string, verbose bool) ([]string, error) 
 		fmt.Printf("Found %d total repositories\n", len(allRepos))
 	}
 
+	propertyValues := map[string]map[string][]string{}
+	if selectors.HasKind(selector.KindProperty) {
+		fetched, err := c.getCustomPropertyValues(org, selectors.HasKind(selector.KindTopic), verbose)
+		if err != nil {
+			return nil, err
+		}
+		propertyValues = fetched
+	}
+
 	var productionRepos []string
 	for _, repo := range allRepos {
-		if repo.Topics == nil {
+		if repo.Name == nil {
 			continue
 		}
 
-		for _, topic := range repo.Topics {
-			if topic == "business-critical-yes" {
-				productionRepos = append(productionRepos, *repo.Name)
-				break
-			}
+		if selectors.MatchesTopics(repo.Topics) || selectors.MatchesProperties(propertyValues[*repo.Name]) {
+			productionRepos = append(productionRepos, *repo.Name)
 		}
 	}
 
 	if verbose {
-		fmt.Printf("Found %d production repositories with 'business-critical-yes' topic\n", len(productionRepos))
+		fmt.Printf("Found %d production repositories matching %s\n", len(productionRepos), selectors)
 	}
 
 	return productionRepos, nil
+}
+
+// getCustomPropertyValues returns the organization's custom property values
+// keyed by repository name, then by lower-cased property name.
+//
+// Reading custom properties needs org-level permission that a token scoped only
+// for repository listing may lack. When other selectors can still identify
+// production repositories, a permission failure degrades to a warning rather
+// than aborting the run.
+func (c *Client) getCustomPropertyValues(org string, canDegrade, verbose bool) (map[string]map[string][]string, error) {
+	values := map[string]map[string][]string{}
+	opts := &github.ListOptions{PerPage: 100}
+
+	if verbose {
+		fmt.Println("Collecting custom property values from organization:", org)
+	}
+
+	for {
+		repoValues, resp, err := c.client.Organizations.ListCustomPropertyValues(c.ctx, org, opts)
+		if err != nil {
+			if resp != nil && (resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusNotFound) {
+				if !canDegrade {
+					return nil, fmt.Errorf("error listing custom property values: access denied. Make sure your GitHub token can read custom properties for the %s organization", org)
+				}
+				fmt.Fprintf(os.Stderr, "Warning: cannot read custom properties for %s (%s); matching on topics only\n", org, resp.Status)
+				return map[string]map[string][]string{}, nil
+			}
+			return nil, fmt.Errorf("error listing custom property values: %w", err)
+		}
+
+		for _, repoValue := range repoValues {
+			values[repoValue.RepositoryName] = propertyMap(repoValue.Properties)
+		}
+
+		if resp.NextPage == 0 {
+			break
+		}
+		opts.Page = resp.NextPage
+	}
+
+	if verbose {
+		fmt.Printf("Found custom property values for %d repositories\n", len(values))
+	}
+
+	return values, nil
+}
+
+// propertyMap flattens custom property values into lower-cased names mapped to
+// their values. Single-value properties yield one value, multi-select
+// properties yield several, and unset properties yield none.
+func propertyMap(properties []*github.CustomPropertyValue) map[string][]string {
+	flattened := make(map[string][]string, len(properties))
+	for _, property := range properties {
+		name := strings.ToLower(property.PropertyName)
+		switch value := property.Value.(type) {
+		case string:
+			flattened[name] = append(flattened[name], value)
+		case []string:
+			flattened[name] = append(flattened[name], value...)
+		}
+	}
+	return flattened
 }
 
 // CheckForOldDependabotPRs checks each repository for Dependabot PRs older than maxAge
