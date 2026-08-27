@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2026-08-27
+
+### Fixed
+
+- `Taskfile.yml` derived the Go module path from the binary name, so it missed
+  the `/v2` suffix added in 2.0.0 and every cross-platform build failed with
+  "no required module provides package". The module path is now built from an
+  explicit `major_version` variable. No release binaries were published for
+  2.0.0 as a result; use 2.0.1.
+
 ## [2.0.0] - 2026-08-27
 
 ### Added
@@ -43,5 +53,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release.
 
+[2.0.1]: https://github.com/scottbrown/dependabot-pr-checker/releases/tag/v2.0.1
 [2.0.0]: https://github.com/scottbrown/dependabot-pr-checker/releases/tag/v2.0.0
 [1.0.0]: https://github.com/scottbrown/dependabot-pr-checker/releases/tag/v1.0.0

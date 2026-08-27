@@ -3,7 +3,10 @@ version: '3'
 
 vars:
   bin_name: dependabot-pr-checker
-  app_repo: github.com/scottbrown/{{ .bin_name }}
+  # Go requires a /vN suffix on the module path for major versions >= 2, so the
+  # module path is not simply the repository path. Bump this on a major release.
+  major_version: v2
+  app_repo: github.com/scottbrown/{{ .bin_name }}/{{ .major_version }}
   pkg_name: "{{ .app_repo }}"
 
   pwd:
