@@ -29,7 +29,7 @@ Each tagged release publishes `tar.gz` archives for Linux, macOS, and Windows
 [releases page](https://github.com/scottbrown/dependabot-pr-checker/releases).
 
 ```bash
-tar xzf dependabot-pr-checker_v1.0.0_darwin_arm64.tar.gz
+tar xzf dependabot-pr-checker_v2.0.0_darwin_arm64.tar.gz
 mv dependabot-pr-checker /usr/local/bin/
 ```
 
@@ -48,7 +48,7 @@ task build
 Alternatively, you can install directly using Go:
 
 ```bash
-go install github.com/scottbrown/dependabot-pr-checker@latest
+go install github.com/scottbrown/dependabot-pr-checker/v2@latest
 ```
 
 ## Development
@@ -77,7 +77,7 @@ task coverage
 task coverage-report
 
 # Build release artifacts for all platforms
-task release VERSION=v1.0.0
+task release VERSION=v2.0.0
 ```
 
 The coverage report will be available at `.build/coverage.html` after running the `coverage-report` task.
@@ -90,8 +90,8 @@ workflow runs the unit tests, cross-compiles for linux/darwin/windows on both
 amd64 and arm64, generates an SBOM, and attaches everything to a GitHub release.
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v2.0.0
+git push origin v2.0.0
 ```
 
 The version and commit are baked into the binary via `-ldflags` and reported by

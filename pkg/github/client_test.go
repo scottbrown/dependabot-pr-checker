@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/google/go-github/v68/github"
-	"github.com/scottbrown/dependabot-pr-checker/pkg/selector"
+	"github.com/scottbrown/dependabot-pr-checker/v2/pkg/selector"
 )
 
 // mockGitHubServer creates a mock GitHub API server for testing

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/scottbrown/dependabot-pr-checker/pkg/github"
-	"github.com/scottbrown/dependabot-pr-checker/pkg/selector"
+	"github.com/scottbrown/dependabot-pr-checker/v2/pkg/github"
+	"github.com/scottbrown/dependabot-pr-checker/v2/pkg/selector"
 	"github.com/spf13/cobra"
 )
 

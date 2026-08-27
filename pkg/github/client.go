@@ -11,7 +11,7 @@ import (
 
 	"github.com/google/go-github/v68/github"
 	"github.com/schollz/progressbar/v3"
-	"github.com/scottbrown/dependabot-pr-checker/pkg/selector"
+	"github.com/scottbrown/dependabot-pr-checker/v2/pkg/selector"
 	"golang.org/x/oauth2"
 )
 
