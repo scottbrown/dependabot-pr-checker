@@ -16,7 +16,7 @@
 1. Add a `watch` mode that periodically checks and notifies of changes
 2. Implement an option to generate HTML reports with charts/graphs
 3. Add functionality to automatically assign reviewers to old PRs
-4. Provide a way to filter repositories by additional criteria beyond just the "business-critical-yes" tag
+4. ~~Provide a way to filter repositories by additional criteria beyond just the "business-critical-yes" tag~~
 5. Add option to check non-Dependabot PRs that might also need attention
 
 ## 4. Accessibility
