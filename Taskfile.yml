@@ -19,7 +19,15 @@ vars:
     sh: git tag --points-at HEAD | head -1 | grep . || git rev-parse --abbrev-ref HEAD
   git_commit:
     sh: git rev-parse --short HEAD
-  ldflags: "-X {{ .app_repo }}/cmd.version={{ .git_version }} -X {{ .app_repo }}/cmd.build={{ .git_commit }}"
+
+  # Client ID of the GitHub App backing the OAuth device flow, baked in with
+  # CLIENT_ID=... task build. This is not a secret; the device flow exists so
+  # that a distributed client does not have to hold one. When left empty, users
+  # supply their own via DEPENDABOT_PR_CHECKER_CLIENT_ID at runtime.
+  client_id:
+    sh: echo "${CLIENT_ID:-}"
+
+  ldflags: "-X {{ .app_repo }}/cmd.version={{ .git_version }} -X {{ .app_repo }}/cmd.build={{ .git_commit }} -X {{ .app_repo }}/pkg/auth.clientID={{ .client_id }}"
 
 tasks:
   build:

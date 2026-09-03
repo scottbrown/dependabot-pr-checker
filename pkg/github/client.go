@@ -28,19 +28,37 @@ type Client struct {
 	ctx    context.Context
 }
 
-// NewClient creates a new GitHub client with the provided token
-func NewClient(token string) (*Client, error) {
+// NewClient creates a new GitHub client from an already-authenticated HTTP
+// client.
+//
+// Credentials are supplied as a client rather than a token string because some
+// of them expire during a run. A GitHub App installation token lasts an hour,
+// which a scan of a large organization can outlast, so the transport has to be
+// free to renew it mid-run.
+func NewClient(httpClient *http.Client) (*Client, error) {
+	if httpClient == nil {
+		return nil, fmt.Errorf("an authenticated HTTP client is required")
+	}
+
+	return &Client{
+		client: github.NewClient(httpClient),
+		ctx:    context.Background(),
+	}, nil
+}
+
+// NewClientWithToken creates a new GitHub client that authenticates with a
+// fixed token.
+func NewClientWithToken(token string) (*Client, error) {
+	if token == "" {
+		return nil, fmt.Errorf("a GitHub token is required")
+	}
+
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
-	tc := oauth2.NewClient(ctx, ts)
-	client := github.NewClient(tc)
 
-	return &Client{
-		client: client,
-		ctx:    ctx,
-	}, nil
+	return NewClient(oauth2.NewClient(ctx, ts))
 }
 
 // GetProductionRepos returns all repositories in the organization that satisfy

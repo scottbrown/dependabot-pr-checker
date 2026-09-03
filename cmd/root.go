@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/scottbrown/dependabot-pr-checker/v2/pkg/auth"
 	"github.com/scottbrown/dependabot-pr-checker/v2/pkg/github"
 	"github.com/scottbrown/dependabot-pr-checker/v2/pkg/selector"
 	"github.com/spf13/cobra"
@@ -36,6 +37,7 @@ var (
 	outputFormat string
 	sortBy       string
 	selectExprs  []string
+	authMethod   string
 	version      string // Git branch, set during build by -ldflags
 	build        string // Git short ref, set during build by -ldflags
 )
@@ -51,18 +53,22 @@ By default a repository is considered "production" if it has the topic
 'business-critical-yes' or the custom property 'business-critical' set to 'yes'.
 Use --select to define your own criteria.
 
-The tool requires a GitHub token to be set in the GITHUB_TOKEN environment variable.
-Matching on custom properties additionally requires the token to be able to read
-custom properties for the organization.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		token := os.Getenv("GITHUB_TOKEN")
-		if token == "" {
-			return fmt.Errorf("GITHUB_TOKEN environment variable is not set")
-		}
+Credentials are resolved from the GITHUB_TOKEN environment variable, a GitHub
+App, a cached device flow login, or the GitHub CLI, in that order. Use --auth to
+pick one explicitly. Organizations that prohibit personal access tokens can
+authenticate with a GitHub App or 'dependabot-pr-checker login'.
 
+Matching on custom properties additionally requires the credential to be able to
+read custom properties for the organization.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Check for mutually exclusive flags
 		if verbose && quiet {
 			return fmt.Errorf("--verbose and --quiet flags cannot be used together")
+		}
+
+		method, err := auth.ParseMethod(authMethod)
+		if err != nil {
+			return err
 		}
 
 		// Validate output format
@@ -82,13 +88,22 @@ custom properties for the organization.`,
 			return err
 		}
 
-		client, err := github.NewClient(token)
+		// Structured output formats imply quiet mode for progress reporting
+		showOutput := verbose && outputFormat == "text" && !quiet
+
+		credential, err := auth.Resolve(cmd.Context(), method, organization)
+		if err != nil {
+			return err
+		}
+		if showOutput {
+			fmt.Println("Authenticated using:", credential.Source)
+		}
+
+		client, err := github.NewClient(credential.Client)
 		if err != nil {
 			return fmt.Errorf("failed to create GitHub client: %w", err)
 		}
 
-		// Structured output formats imply quiet mode for progress reporting
-		showOutput := verbose && outputFormat == "text" && !quiet
 		repos, err := client.GetProductionRepos(organization, selectors, showOutput)
 		if err != nil {
 			return fmt.Errorf("failed to get production repositories: %w", err)
@@ -238,6 +253,8 @@ func init() {
 		"Criterion marking a repository as production, as 'topic:NAME' or 'property:NAME=VALUE'. "+
 			"Repeatable; a repository matching any one of them is included. "+
 			"(default topic:business-critical-yes, property:business-critical=yes)")
+	rootCmd.Flags().StringVar(&authMethod, "auth", "auto",
+		"Credential source: auto, env (GITHUB_TOKEN), app (GitHub App), oauth (cached login), gh (GitHub CLI)")
 
 	// Set version string in format "BRANCH (SHORT_REF)"
 	if version != "" && build != "" {
