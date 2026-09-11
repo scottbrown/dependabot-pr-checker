@@ -111,14 +111,61 @@ export GITHUB_TOKEN=your_github_token
 ./dependabot-pr-checker -o myorg
 ```
 
+### Authentication
+
+Credentials are resolved from the first source below that is configured. Use `--auth` to pick one explicitly instead.
+
+| `--auth` | Source | Best for |
+| --- | --- | --- |
+| `env` | `GITHUB_TOKEN` environment variable | CI, or any ready-made token |
+| `app` | GitHub App installation | Automation in organizations that prohibit PATs |
+| `oauth` | Token cached by `dependabot-pr-checker login` | Interactive use where PATs are prohibited |
+| `gh` | `gh auth token` from the GitHub CLI | Local use with the CLI already signed in |
+
+`--auth auto` (the default) tries all four in that order. A source that is configured but broken fails the run rather than silently falling through to a different credential, since that would change which repositories the run can see.
+
+#### Organizations that prohibit personal access tokens
+
+An organization can disable both classic and fine-grained personal access tokens. Those policies do not govern GitHub App tokens or OAuth user access tokens, so either of the following still works.
+
+**GitHub App** — best for CI and scheduled runs. Register an App, install it on the organization, then set:
+
+```bash
+export GITHUB_APP_ID=123456
+export GITHUB_APP_PRIVATE_KEY_PATH=/path/to/key.pem   # or GITHUB_APP_PRIVATE_KEY with the PEM contents
+```
+
+The installation is discovered from `--organization`. Set `GITHUB_APP_INSTALLATION_ID` to skip discovery. Installation tokens last an hour and are renewed automatically, so a long scan of a large organization will not fail partway through.
+
+**Device flow** — best for interactive use. Requires the client ID of a GitHub App with device flow enabled:
+
+```bash
+export DEPENDABOT_PR_CHECKER_CLIENT_ID=Iv1.your_client_id
+./dependabot-pr-checker login    # enter the one-time code in a browser
+./dependabot-pr-checker -o myorg # subsequent runs need no interactive step
+./dependabot-pr-checker logout   # discard the cached token
+```
+
+The token is cached with `0600` permissions under your user config directory (override with `DEPENDABOT_PR_CHECKER_CONFIG_DIR`), and is refreshed and re-cached automatically as it expires. An OAuth App can be used instead of a GitHub App, but also needs `DEPENDABOT_PR_CHECKER_OAUTH_SCOPES=repo,read:org`; a GitHub App needs no scopes because its permissions come from the installation.
+
 ### Required Permissions
 
-The GitHub token must have:
+A personal access token or OAuth token must have:
 - `repo` scope to access private repositories
 - Access to the specified organization (may require SAML enforcement if enabled)
 - Permission to read custom properties for the organization, if matching on
   custom properties (the default). Without it the tool prints a warning and falls
   back to matching on topics alone.
+
+A GitHub App needs these permissions:
+
+| Scope | Permission | Used for |
+| --- | --- | --- |
+| Repository | Metadata: read | Listing the organization's repositories |
+| Repository | Pull requests: read | Finding open Dependabot PRs |
+| Organization | Custom properties: read | Matching on custom properties |
+
+For user-to-server requests (device flow) the effective access is the intersection of the App's permissions and the signed-in user's own access, so a user who is not an organization member will see a short repository list rather than an error. Run with `--verbose` to confirm which credential was used.
 
 ### Defining "production"
 
@@ -159,8 +206,17 @@ selector costs one extra paginated request per run, not one per repository.
 ```
 Usage:
   dependabot-pr-checker [flags]
+  dependabot-pr-checker [command]
+
+Available Commands:
+  completion  Generate the autocompletion script for the specified shell
+  help        Help about any command
+  login       Authenticate with GitHub using the OAuth device flow
+  logout      Discard the cached OAuth token
 
 Flags:
+      --auth string           Credential source: auto, env (GITHUB_TOKEN), app (GitHub App),
+                              oauth (cached login), gh (GitHub CLI) (default "auto")
       --format string         Output format (text, json, csv) (default "text")
   -h, --help                  help for dependabot-pr-checker
       --max-age int           Maximum age of Dependabot PRs in days (default 30)

@@ -5,6 +5,35 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- GitHub App authentication, for automation in organizations whose policy
+  prohibits personal access tokens. Configure `GITHUB_APP_ID` plus either
+  `GITHUB_APP_PRIVATE_KEY` or `GITHUB_APP_PRIVATE_KEY_PATH`; the installation is
+  discovered from `--organization` unless `GITHUB_APP_INSTALLATION_ID` pins it.
+  Installation tokens are renewed automatically, so a scan lasting longer than
+  the one-hour token lifetime no longer fails partway through.
+- `login` and `logout` subcommands, authenticating interactively with the OAuth
+  device flow and caching the resulting user access token with `0600`
+  permissions. Cached tokens are refreshed and re-cached as they expire. Set
+  `DEPENDABOT_PR_CHECKER_CLIENT_ID` to the client ID of a GitHub App with device
+  flow enabled, or bake one in at build time with `CLIENT_ID=... task build`.
+- Credentials from the GitHub CLI, used when nothing else is configured.
+- `--auth` flag selecting the credential source explicitly: `auto` (the default),
+  `env`, `app`, `oauth`, or `gh`. A source that is configured but broken now
+  fails the run rather than falling through to a different credential, which
+  would quietly change which repositories the run can see.
+- `--verbose` reports which credential source was used.
+
+### Changed
+
+- `github.NewClient` now takes an authenticated `*http.Client` rather than a
+  token string, so that credentials which expire mid-run can renew themselves.
+  Use `github.NewClientWithToken` for the previous behaviour. This affects only
+  callers who consume the packages directly.
+
 ## [2.0.1] - 2026-08-27
 
 ### Fixed

@@ -359,7 +359,7 @@ func TestCheckForOldDependabotPRs(t *testing.T) {
 }
 
 func TestNewClient(t *testing.T) {
-	client, err := NewClient("test-token")
+	client, err := NewClient(http.DefaultClient)
 	if err != nil {
 		t.Fatalf("NewClient() unexpected error: %v", err)
 	}
@@ -368,6 +368,31 @@ func TestNewClient(t *testing.T) {
 	}
 	if client.ctx == nil {
 		t.Error("NewClient() did not set a context")
+	}
+}
+
+func TestNewClientRejectsMissingHTTPClient(t *testing.T) {
+	if _, err := NewClient(nil); err == nil {
+		t.Error("NewClient(nil) expected an error, got none")
+	}
+}
+
+func TestNewClientWithToken(t *testing.T) {
+	client, err := NewClientWithToken("test-token")
+	if err != nil {
+		t.Fatalf("NewClientWithToken() unexpected error: %v", err)
+	}
+	if client.client == nil {
+		t.Error("NewClientWithToken() did not set the underlying GitHub client")
+	}
+	if client.ctx == nil {
+		t.Error("NewClientWithToken() did not set a context")
+	}
+}
+
+func TestNewClientWithTokenRejectsEmptyToken(t *testing.T) {
+	if _, err := NewClientWithToken(""); err == nil {
+		t.Error("NewClientWithToken(\"\") expected an error, got none")
 	}
 }
 

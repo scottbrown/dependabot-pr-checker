@@ -25,14 +25,23 @@ func TestRootCommand(t *testing.T) {
 			expectedError: true,
 		},
 		{
+			// --auth=env pins the credential source so the outcome does not
+			// depend on whether the machine running the tests happens to have
+			// an authenticated GitHub CLI.
 			name:          "missing_github_token",
-			args:          []string{"dependabot-pr-checker", "-o", "testorg"},
+			args:          []string{"dependabot-pr-checker", "-o", "testorg", "--auth", "env"},
 			envVars:       map[string]string{},
 			expectedError: true,
 		},
 		{
 			name:          "conflicting_verbose_quiet_flags",
 			args:          []string{"dependabot-pr-checker", "-o", "testorg", "-v", "-q"},
+			envVars:       map[string]string{"GITHUB_TOKEN": "dummy-token"},
+			expectedError: true,
+		},
+		{
+			name:          "unsupported_auth_method",
+			args:          []string{"dependabot-pr-checker", "-o", "testorg", "--auth", "carrier-pigeon"},
 			envVars:       map[string]string{"GITHUB_TOKEN": "dummy-token"},
 			expectedError: true,
 		},
