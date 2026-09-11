@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"os/exec"
 	"strings"
 	"testing"
 )
@@ -167,4 +168,53 @@ func TestGhCredentialReportsNotConfiguredWithoutCLI(t *testing.T) {
 	if !errors.Is(err, ErrNotConfigured) {
 		t.Errorf("ghCredential() error = %v, want ErrNotConfigured", err)
 	}
+}
+
+func TestGhFailureReason(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{
+			name: "single line",
+			err:  exitErrorWithStderr("no oauth token found for github.com\n"),
+			want: "no oauth token found for github.com",
+		},
+		{
+			name: "keeps only the first line of remediation advice",
+			err:  exitErrorWithStderr("you are not logged in\nTo log in, run: gh auth login\n"),
+			want: "you are not logged in",
+		},
+		{
+			name: "skips leading blank lines",
+			err:  exitErrorWithStderr("\n  \nno oauth token found\n"),
+			want: "no oauth token found",
+		},
+		{
+			name: "silent failure",
+			err:  exitErrorWithStderr(""),
+			want: "",
+		},
+		{
+			name: "not an exit error",
+			err:  errors.New("context deadline exceeded"),
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ghFailureReason(tt.err); got != tt.want {
+				t.Errorf("ghFailureReason() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// exitErrorWithStderr stands in for what exec.Cmd.Output() returns when the
+// command exits non-zero. Only Stderr is populated because that is the sole
+// field ghFailureReason reads.
+func exitErrorWithStderr(stderr string) error {
+	return &exec.ExitError{Stderr: []byte(stderr)}
 }

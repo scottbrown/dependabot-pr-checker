@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"os/exec"
 	"strings"
 )
@@ -23,7 +24,13 @@ func ghCredential(ctx context.Context) (*Credential, error) {
 	if err != nil {
 		// A non-zero exit almost always means the CLI is installed but not
 		// logged in, which is a reason to try the next source rather than an
-		// error worth stopping for.
+		// error worth stopping for. The CLI diagnoses itself on stderr, so
+		// repeat what it said: a common cause is that its only credential was
+		// GITHUB_TOKEN, which this tool was asked to ignore, and that is
+		// invisible from the generic reason alone.
+		if reason := ghFailureReason(err); reason != "" {
+			return nil, notConfigured("GitHub CLI is not authenticated: %s", reason)
+		}
 		return nil, notConfigured("GitHub CLI is not authenticated")
 	}
 
@@ -36,4 +43,23 @@ func ghCredential(ctx context.Context) (*Credential, error) {
 		Client: staticClient(ctx, token),
 		Source: "GitHub CLI (gh auth token)",
 	}, nil
+}
+
+// ghFailureReason picks the first non-empty line the GitHub CLI wrote to
+// stderr before exiting. Only the first line is kept because the CLI tends to
+// follow its diagnosis with multi-line remediation advice that would swamp a
+// one-line error.
+func ghFailureReason(err error) string {
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) {
+		return ""
+	}
+
+	for _, line := range strings.Split(string(exitErr.Stderr), "\n") {
+		if line = strings.TrimSpace(line); line != "" {
+			return line
+		}
+	}
+
+	return ""
 }
