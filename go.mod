@@ -1,6 +1,6 @@
 module github.com/scottbrown/dependabot-pr-checker/v2
 
-go 1.24.2
+go 1.27.4
 
 require (
 	github.com/google/go-github/v68 v68.0.0
